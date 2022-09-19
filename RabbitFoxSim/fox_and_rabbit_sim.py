@@ -138,6 +138,9 @@ class Entity:
                               self._position[1] + b]
         self.want_mate()
 
+    def display(self):
+        return "E"
+
     def is_dead(self):
         if self._data["Energy"] <= 0 or self._data["Age"] >= self.get_max_age():
             self._data["Dead"] = True
@@ -333,7 +336,7 @@ class Rabbit(Entity):
     def display(self):
         return "R"
 
-    def mate(self, game, index):
+    def mate(self, game: 'Board', index):
 
         for indexes, entity in enumerate(game.get_entities()):
 
@@ -341,17 +344,19 @@ class Rabbit(Entity):
             pos2 = entity.get_position()
             sight = self.get_mate_range()
             x_range, y_range = (pos1[0] - sight, pos1[0] + sight), (pos1[1] - sight, pos1[1] + sight)
-            # Make sure it doesn't eat itself or other rabbits
-            # Currently they mate with themselves as they try to look
+            # Make sure it doesn't breed with itself
+
             if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[
-                1] and entity.display() != 'P' and entity.display() != "F" \
-                    and entity.check_mate() and (index - game.get_back_up()) != indexes:
+                1] and entity.display() == "R" \
+                    and entity.check_mate() and index == indexes and not entity.get_dead():
                 print(f"{self.get_name()} is mating with {entity.get_name()}")
                 print(entity.get_cool_down())
                 self.reset_cool_down()
                 entity.reset_cool_down()
                 print(entity.get_cool_down())
                 child_choice = random.randint(0, 1)
+
+                #Decide which parent will give its energy
                 if child_choice == 0:
                     amount_of_children = self.get_children()
                     energy_using = self.get_breed_energy()
@@ -370,6 +375,7 @@ class Rabbit(Entity):
 
     def make_babies(self, game, partner: "Rabbit", energy):
         # age, sight, energy, mate_energy, move_distance, bite_range, children, breeding_cost
+        # maybe add mutation rate and breeding
         rabbit1_genes = [0,
                          self.get_sight(),
                          int(energy),
@@ -715,12 +721,10 @@ class Fox(Entity):
                 # print(pos2)
 
                 # Make the rabbit bite the food
-                if indexes > index:
-                    # TODO: Instead of using back up, use a state of the rabbit. True for not dead, false for dead
-                    # Dead creatures on that tick won't be able to interact with any other creatures
-                    game.add_index(indexes + game.get_back_up())
-                else:
-                    game.increment_back_up()
+
+                # TODO: Instead of using back up, use a state of the rabbit. True for not dead, false for dead
+                # Dead creatures on that tick won't be able to interact with any other creatures
+
                 print(f"{self.get_name()} Bite Rabbit")
                 print("")
                 game.remove_entity(indexes)
@@ -738,13 +742,16 @@ class Fox(Entity):
             # Make sure it doesn't eat itself or other rabbits
             # Currently they mate with themselves as they try to look
             if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[
-                1] and entity.display() != 'P' and entity.display() != "R" \
+                1] and entity.display() == "F" \
                     and entity.check_mate() and (index - game.get_back_up()) != indexes:
+
                 print(f"{self.get_name()} is mating with {entity.get_name()}")
                 print(entity.get_cool_down())
+
                 self.reset_cool_down()
                 entity.reset_cool_down()
                 print(entity.get_cool_down())
+
                 child_choice = random.randint(0, 1)
                 if child_choice == 0:
                     amount_of_children = self.get_children()
@@ -960,7 +967,8 @@ class Plant:
         self._data = {
             "Age": 0,
             "Energy": 10,
-            "Name": "Plant"
+            "Name": "Plant",
+            "Dead": False
         }
 
     def display(self):
@@ -974,6 +982,12 @@ class Plant:
 
     def get_name(self):
         return self._data["Name"]
+
+    def get_dead(self):
+        return self._data["Dead"]
+
+    def make_dead(self):
+        self._data["Dead"] = True
 
     def want_mate(self):
         pass
@@ -1040,7 +1054,7 @@ class Board(tk.Canvas):
         super().__init__(root, **kwargs)
         self._entities = []
         self._index_to_back = []
-        self._back_up = 0
+
         self._step = 0
         self._collected_data = {}
         for rabbit in range(RABBIT_COUNT):
@@ -1077,8 +1091,6 @@ class Board(tk.Canvas):
         self.draw_board()
         self.step()
 
-    def increment_back_up(self):
-        self._back_up += 1
 
     def remove_entity(self, index):
         self._entities.pop(index)
@@ -1089,8 +1101,7 @@ class Board(tk.Canvas):
     def increment_step(self):
         self._step += 1
 
-    def get_back_up(self):
-        return self._back_up
+
 
     def display_entities(self):
         display = []
@@ -1154,7 +1165,6 @@ class Board(tk.Canvas):
         """
         # self._back_up resets each step
         print(f"Step: {self._step}")
-        self._back_up = 0
 
         temp_entites = self._entities.copy()
 
@@ -1167,9 +1177,9 @@ class Board(tk.Canvas):
             # print()
             # print(self._entities, index, index-self._back_up)
 
-            if index in self._index_to_back:
+
                 # print(f"Back_up called on index: {index}")
-                self.increment_back_up()
+
             entity.step(self, index)
             self.age_check(entity, index)
             self.energy_check(entity, index)
@@ -1206,7 +1216,7 @@ class Board(tk.Canvas):
         :param index:
         :return:
         """
-        index = index - self._back_up
+
 
         if entity.display() != "P":
             entity__max_age = entity.get_max_age()
@@ -1222,11 +1232,11 @@ class Board(tk.Canvas):
         :param index:
         :return:
         """
-        index -= self._back_up
+
         if entity.get_energy() <= 0:
             print(f"{entity.get_name()} died of starvation.")
             self._entities.pop(index)
-            self._back_up += 1
+
 
     def get_entities(self):
         return self._entities
