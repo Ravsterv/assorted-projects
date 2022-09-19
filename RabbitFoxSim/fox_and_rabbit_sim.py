@@ -96,10 +96,13 @@ How genes are transferred:
     and then add a slight mutation to the genes
 
     Maybe make it so plants spawn near other plants
+
+
+    What data do I want to collect
 """
 import tkinter as tk
 import random
-from constants import *
+from RabbitFoxSim.constants import *
 import math
 
 
@@ -125,7 +128,8 @@ class Entity:
             "BiteRange": bite_range,
             "Children": children,
             "BreedingCost": breeding_cost,
-            "MateRange": 10
+            "MateRange": 10,
+            "Dead": False
 
         }
         b = self._data["BiteRange"]
@@ -133,6 +137,13 @@ class Entity:
         self._bounding_box = [self._position[0] - b, self._position[1] - b, self._position[0] + b,
                               self._position[1] + b]
         self.want_mate()
+
+    def is_dead(self):
+        if self._data["Energy"] <= 0 or self._data["Age"] >= self.get_max_age():
+            self._data["Dead"] = True
+
+    def get_dead(self):
+        return self._data["Dead"]
 
     def get_position(self):
         return self._position
@@ -150,7 +161,7 @@ class Entity:
         # print(f"{self.get_name()} is seeing if he can mate")
         # print(f"Data: {self.get_age()}, {self.get_energy()}, {self.get_mate_threshold()}, {self.get_cool_down()}, {self._data['Mature']}")
         if self._data["Energy"] > self._data["MateEnergyThreshold"] and self._data["Mature"] and self._data[
-            "CoolDown"] <= 0:
+            "CoolDown"] <= 0 and not self._data["Dead"]:
             self._data["WantMate"] = True
             # print(f"{self.get_name()} can mate")
         else:
@@ -422,7 +433,8 @@ class Rabbit(Entity):
             x_range, y_range = (pos1[0] - sight, pos1[0] + sight), (pos1[1] - sight, pos1[1] + sight)
             # Make sure it doesn't eat itself or other rabbits
 
-            if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[1] and entity.display() == "P":
+            if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[1] and entity.display() == "P" and \
+                    not self.get_dead():
                 # print(x_range[0], x_range[1])
                 # print(y_range[0], y_range[1])
                 # print(pos1)
@@ -704,6 +716,8 @@ class Fox(Entity):
 
                 # Make the rabbit bite the food
                 if indexes > index:
+                    # TODO: Instead of using back up, use a state of the rabbit. True for not dead, false for dead
+                    # Dead creatures on that tick won't be able to interact with any other creatures
                     game.add_index(indexes + game.get_back_up())
                 else:
                     game.increment_back_up()
@@ -1028,6 +1042,7 @@ class Board(tk.Canvas):
         self._index_to_back = []
         self._back_up = 0
         self._step = 0
+        self._collected_data = {}
         for rabbit in range(RABBIT_COUNT):
             r = create_rabbit()
             new_rabbit = Rabbit(r["Age"],
@@ -1178,7 +1193,11 @@ class Board(tk.Canvas):
                         self.create_line(pos1[0], pos1[1], pos2[0], pos2[1])"""
 
         self.increment_step()
-        self.after(500, self.step)
+        self.after(100, self.step)
+
+    def collect_data(self):
+        # Meant to collect data of simulation
+        pass
 
     def age_check(self, entity: Entity, index):
         """
@@ -1217,7 +1236,7 @@ class App:
     def __init__(self, root):
         self._root = root
 
-        self._board = Board(root, bg="green", highlightthickness=0)
+        self._board = Board(root, bg="brown", highlightthickness=0)
         self._board.pack(expand=True, fill=tk.BOTH)
 
 
