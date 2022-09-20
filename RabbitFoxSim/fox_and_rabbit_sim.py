@@ -244,7 +244,11 @@ class Entity:
         movement = int((math.sqrt((x_movement ** 2) + (y_movement ** 2))) / 10)
         if movement == 0:
             movement += 1
-        self._data["Energy"] -= movement
+
+        self.remove_energy(movement)
+
+        # Do a small check to make sure the entity hasn't run out of energy
+        self.is_dead()
         self.reset_boundary_box()
 
     def get_max_age(self):
@@ -440,17 +444,14 @@ class Rabbit(Entity):
             # Make sure it doesn't eat itself or other rabbits
 
             if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[1] and entity.display() == "P" and \
-                    not self.get_dead():
+                    not self.get_dead() and not entity.get_dead():
                 # print(x_range[0], x_range[1])
                 # print(y_range[0], y_range[1])
                 # print(pos1)
                 # print(pos2)
 
                 # Make the rabbit bite the food
-                if indexes > index:
-                    game.add_index(indexes + game.get_back_up())
-                else:
-                    game.increment_back_up()
+
                 print(f"{self.get_name()} Bite Plant")
                 print("")
                 game.remove_entity(indexes)
@@ -478,7 +479,7 @@ class Rabbit(Entity):
 
                 # Make sure it isn't looking at itself.
                 # When a rabbit dies, anyother rabbits can see themself for the next turn
-                if pos2[0] == pos1[0] and pos2[1] == pos1[1] and (self_index - game.get_back_up()) == index:
+                if pos2[0] == pos1[0] and pos2[1] == pos1[1] and self_index  == index:
                     continue
                 else:
                     # Make the rabbit move towards the food
@@ -1165,25 +1166,27 @@ class Board(tk.Canvas):
         """
         # self._back_up resets each step
         print(f"Step: {self._step}")
-
-        temp_entites = self._entities.copy()
+        next_board = []
 
         # Go through all entities on the board
         self.refresh_index_to_back_up()
-        for index, entity in enumerate(temp_entites):
+        # make it so it just
+        for index, entity in enumerate(self._entities):
             # print(self._index_to_back)
             # print(self.get_entities())
             # Check if entity wants to mate
             # print()
             # print(self._entities, index, index-self._back_up)
-
-
-                # print(f"Back_up called on index: {index}")
+            # print(f"Back_up called on index: {index}")
 
             entity.step(self, index)
-            self.age_check(entity, index)
-            self.energy_check(entity, index)
+            entity.is_dead()
 
+        for entity in self._entities:
+            if not entity.get_dead():
+                next_board.append(entity)
+
+        self.set_entities(next_board)
         for plant in range(8):
             p = Plant([random.randint(X_MIN, X_MAX), random.randint(Y_MIN, Y_MAX)])
             self.add_entity(p)
@@ -1217,13 +1220,11 @@ class Board(tk.Canvas):
         :return:
         """
 
-
         if entity.display() != "P":
             entity__max_age = entity.get_max_age()
             if entity.get_age() > entity__max_age:
                 print(f"{entity.get_name()} died of old age.")
-                self._entities.pop(index)
-                self._back_up += 1
+
 
     def energy_check(self, entity, index):
         """
@@ -1240,6 +1241,9 @@ class Board(tk.Canvas):
 
     def get_entities(self):
         return self._entities
+
+    def set_entities(self, new_entities):
+        self._entities = new_entities
 
 
 class App:
