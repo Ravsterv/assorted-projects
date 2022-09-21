@@ -105,7 +105,8 @@ import random
 from RabbitFoxSim.constants import *
 import math
 
-
+# TODO: make a Meat Object for foxes to eat if a rabbit dies
+# Helps the foxes have a fighting chance of surviving
 class Entity:
     """
     Represent the multiple aspects on the board such as foxes, rabbits and plants
@@ -341,7 +342,7 @@ class Rabbit(Entity):
         return "R"
 
     def mate(self, game: 'Board', index):
-
+        # TODO: Review this section for is_dead()
         for indexes, entity in enumerate(game.get_entities()):
 
             pos1 = self.get_position()
@@ -380,6 +381,7 @@ class Rabbit(Entity):
     def make_babies(self, game, partner: "Rabbit", energy):
         # age, sight, energy, mate_energy, move_distance, bite_range, children, breeding_cost
         # maybe add mutation rate and breeding
+        # TODO: Review this section for mutation rates when added
         rabbit1_genes = [0,
                          self.get_sight(),
                          int(energy),
@@ -433,8 +435,8 @@ class Rabbit(Entity):
         Occurs when the bunny has moved while looking for food, they then attempt to bite any food in range
         :return:
         """
-
-        temp = game.get_entities().copy()
+        # TODO: Make so a plant is labeled as dead=True when bitten
+        temp = game.get_entities()
         for indexes, entity in enumerate(temp):
 
             pos1 = self.get_position()
@@ -442,6 +444,7 @@ class Rabbit(Entity):
             sight = self.get_bite_range()
             x_range, y_range = (pos1[0] - sight, pos1[0] + sight), (pos1[1] - sight, pos1[1] + sight)
             # Make sure it doesn't eat itself or other rabbits
+            # It can only bite a plant within its bite range
 
             if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[1] and entity.display() == "P" and \
                     not self.get_dead() and not entity.get_dead():
@@ -454,7 +457,8 @@ class Rabbit(Entity):
 
                 print(f"{self.get_name()} Bite Plant")
                 print("")
-                game.remove_entity(indexes)
+                # make the plant "dead" and unable to be targeted by any other rabbits
+                entity.make_dead()
                 self.add_energy(20)
                 break
 
@@ -668,11 +672,15 @@ class Rabbit(Entity):
             self.random_movement()
 
     def step(self, game, index):
+        # all the steps above are enacted
+        self.is_dead()
         self.decrease_cool_down()
         self.mature_check()
         self.want_mate()
         self.move(game, index)
+        self.is_dead()
         self.age()
+        self.is_dead()
         self.want_mate()
 
 
@@ -993,6 +1001,10 @@ class Plant:
     def want_mate(self):
         pass
 
+    def is_dead(self):
+        # Used as it is technically not an entity but this still gets run against it.
+        pass
+
     def move_entity(self):
 
         if self._position[0] > 1000:
@@ -1263,3 +1275,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+# TODO: Go through every part of Fox, Rabbit and plant and make sure is_dead appears
+# When rabbit eats a plant  set "Dead" True
