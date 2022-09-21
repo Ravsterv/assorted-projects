@@ -105,8 +105,10 @@ import random
 from RabbitFoxSim.constants import *
 import math
 
+
 # TODO: make a Meat Object for foxes to eat if a rabbit dies
 # Helps the foxes have a fighting chance of surviving
+
 class Entity:
     """
     Represent the multiple aspects on the board such as foxes, rabbits and plants
@@ -164,6 +166,7 @@ class Entity:
     def want_mate(self):
         # print(f"{self.get_name()} is seeing if he can mate")
         # print(f"Data: {self.get_age()}, {self.get_energy()}, {self.get_mate_threshold()}, {self.get_cool_down()}, {self._data['Mature']}")
+
         if self._data["Energy"] > self._data["MateEnergyThreshold"] and self._data["Mature"] and self._data[
             "CoolDown"] <= 0 and not self._data["Dead"]:
             self._data["WantMate"] = True
@@ -344,7 +347,8 @@ class Rabbit(Entity):
     def mate(self, game: 'Board', index):
         # TODO: Review this section for is_dead()
         for indexes, entity in enumerate(game.get_entities()):
-
+            if entity.get_dead():
+                continue
             pos1 = self.get_position()
             pos2 = entity.get_position()
             sight = self.get_mate_range()
@@ -353,15 +357,18 @@ class Rabbit(Entity):
 
             if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[
                 1] and entity.display() == "R" \
-                    and entity.check_mate() and index == indexes and not entity.get_dead():
+                    and entity.check_mate() and index == indexes:
+
                 print(f"{self.get_name()} is mating with {entity.get_name()}")
                 print(entity.get_cool_down())
+
                 self.reset_cool_down()
+
                 entity.reset_cool_down()
                 print(entity.get_cool_down())
                 child_choice = random.randint(0, 1)
 
-                #Decide which parent will give its energy
+                # Decide which parent will give its energy
                 if child_choice == 0:
                     amount_of_children = self.get_children()
                     energy_using = self.get_breed_energy()
@@ -438,7 +445,8 @@ class Rabbit(Entity):
         # TODO: Make so a plant is labeled as dead=True when bitten
         temp = game.get_entities()
         for indexes, entity in enumerate(temp):
-
+            if entity.get_dead():
+                continue
             pos1 = self.get_position()
             pos2 = entity.get_position()
             sight = self.get_bite_range()
@@ -470,93 +478,122 @@ class Rabbit(Entity):
         :return:
         """
         # Find anything that the rabbit can "see"
-        see_able = []
-        see_able_display = []
-        for index, entity in enumerate(game.get_entities()):
-
-            pos1 = self.get_position()
-            pos2 = entity.get_position()
-            sight = self.get_sight()
-            x_range, y_range = (pos1[0] - sight, pos1[0] + sight), (pos1[1] - sight, pos1[1] + sight)
-
-            if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[1]:
-
-                # Make sure it isn't looking at itself.
-                # When a rabbit dies, anyother rabbits can see themself for the next turn
-                if pos2[0] == pos1[0] and pos2[1] == pos1[1] and self_index  == index:
+        if self.get_dead():
+            pass
+        else:
+            see_able = []
+            see_able_display = []
+            for index, entity in enumerate(game.get_entities()):
+                if entity.get_dead():
                     continue
+                pos1 = self.get_position()
+                pos2 = entity.get_position()
+                sight = self.get_sight()
+                x_range, y_range = (pos1[0] - sight, pos1[0] + sight), (pos1[1] - sight, pos1[1] + sight)
+
+                if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[1]:
+
+                    # Make sure it isn't looking at itself.
+                    # When a rabbit dies, anyother rabbits can see themself for the next turn
+                    if pos2[0] == pos1[0] and pos2[1] == pos1[1] and self_index == index:
+                        continue
+                    else:
+                        # Make the rabbit move towards the food
+                        # print(f"{self.get_name()}({self_index-game.get_back_up()}) sees entity {entity.get_name()}({index})")
+                        see_able.append(entity)
+                        see_able_display.append(entity.display())
+            # print(see_able)
+
+            # Check if any entities are edible
+            # Create a list which is a display version of see-able
+            if "F" in see_able_display:
+                print("See Fox")
+                # self.random_movement()
+                lowest_distance = None
+                lowest_index = None
+                for index, entity in enumerate(see_able):
+                    # if entity.display() == "R":
+                    # print(entity.check_mate(), entity.get_age(), entity.get_energy(), entity.get_genes()["Mature"])
+                    if entity.display() == "F":
+                        plant_pos = entity.get_position()
+                        rabbit_pos = self.get_position()
+
+                        x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
+                        distance = int(self.determine_distance(x_distance, y_distance))
+                        # print(distance)
+
+                        if lowest_distance is None and entity.display() == "F":
+                            lowest_distance = distance
+                            lowest_index = index
+
+                        elif lowest_distance is not None and distance < lowest_distance and entity.display() == "F":
+                            lowest_distance = distance
+                            lowest_index = index
+
+                if lowest_distance is not None:
+                    # With this set up it means that a rabbit with 55 energy could move far enough to be below 50 energy, but still
+                    # be able to mate as their status is still available to mate, which for now I shall allow
+                    self.move_away_from_entity(see_able, lowest_index)
+
+            elif "R" in see_able_display and self.check_mate():
+                print("See Rabbit")
+                # self.random_movement()
+                lowest_distance = None
+                lowest_index = None
+
+                for index, entity in enumerate(see_able):
+                    # if entity.display() == "R":
+                    # print(entity.check_mate(), entity.get_age(), entity.get_energy(), entity.get_genes()["Mature"])
+                    if entity.display() == "R" and entity.check_mate() and self.check_mate():
+                        plant_pos = entity.get_position()
+                        rabbit_pos = self.get_position()
+
+                        x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
+                        distance = int(self.determine_distance(x_distance, y_distance))
+                        # print(distance)
+
+                        if lowest_distance is None and entity.display() == "R":
+                            lowest_distance = distance
+                            lowest_index = index
+
+                        elif lowest_distance is not None and distance < lowest_distance and entity.display() == "R":
+                            lowest_distance = distance
+                            lowest_index = index
+
+                if lowest_distance is not None:
+                    # With this set up it means that a rabbit with 55 energy could move far enough to be below 50 energy, but still
+                    # be able to mate as their status is still available to mate, which for now I shall allow
+                    self.move_towards_entity(see_able, lowest_index)
+
+                    self.mate(game, self_index)
+
+                elif "P" in see_able_display:
+                    print("Eat plant since rabbit wont mate")
+                    lowest_distance = None
+                    lowest_index = None
+                    for index, entity in enumerate(see_able):
+                        plant_pos = entity.get_position()
+                        rabbit_pos = self.get_position()
+
+                        x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
+                        distance = int(self.determine_distance(x_distance, y_distance))
+
+                        if lowest_distance is None and entity.display() == "P":
+                            lowest_distance = distance
+                            lowest_index = index
+
+                        elif lowest_distance is not None and distance < lowest_distance and entity.display() == "P":
+                            lowest_distance = distance
+                            lowest_index = index
+
+                    self.move_towards_entity(see_able, lowest_index)
+                    self.bite(game, self_index)
                 else:
-                    # Make the rabbit move towards the food
-                    # print(f"{self.get_name()}({self_index-game.get_back_up()}) sees entity {entity.get_name()}({index})")
-                    see_able.append(entity)
-                    see_able_display.append(entity.display())
-        # print(see_able)
-
-        # Check if any entities are edible
-        # Create a list which is a display version of see-able
-        if "F" in see_able_display:
-            print("See Fox")
-            # self.random_movement()
-            lowest_distance = None
-            lowest_index = None
-            for index, entity in enumerate(see_able):
-                # if entity.display() == "R":
-                # print(entity.check_mate(), entity.get_age(), entity.get_energy(), entity.get_genes()["Mature"])
-                if entity.display() == "F":
-                    plant_pos = entity.get_position()
-                    rabbit_pos = self.get_position()
-
-                    x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
-                    distance = int(self.determine_distance(x_distance, y_distance))
-                    # print(distance)
-
-                    if lowest_distance is None and entity.display() == "F":
-                        lowest_distance = distance
-                        lowest_index = index
-
-                    elif lowest_distance is not None and distance < lowest_distance and entity.display() == "F":
-                        lowest_distance = distance
-                        lowest_index = index
-
-            if lowest_distance is not None:
-                # With this set up it means that a rabbit with 55 energy could move far enough to be below 50 energy, but still
-                # be able to mate as their status is still available to mate, which for now I shall allow
-                self.move_away_from_entity(see_able, lowest_index)
-
-        elif "R" in see_able_display and self.check_mate():
-            print("See Rabbit")
-            # self.random_movement()
-            lowest_distance = None
-            lowest_index = None
-
-            for index, entity in enumerate(see_able):
-                # if entity.display() == "R":
-                # print(entity.check_mate(), entity.get_age(), entity.get_energy(), entity.get_genes()["Mature"])
-                if entity.display() == "R" and entity.check_mate() and self.check_mate():
-                    plant_pos = entity.get_position()
-                    rabbit_pos = self.get_position()
-
-                    x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
-                    distance = int(self.determine_distance(x_distance, y_distance))
-                    # print(distance)
-
-                    if lowest_distance is None and entity.display() == "R":
-                        lowest_distance = distance
-                        lowest_index = index
-
-                    elif lowest_distance is not None and distance < lowest_distance and entity.display() == "R":
-                        lowest_distance = distance
-                        lowest_index = index
-
-            if lowest_distance is not None:
-                # With this set up it means that a rabbit with 55 energy could move far enough to be below 50 energy, but still
-                # be able to mate as their status is still available to mate, which for now I shall allow
-                self.move_towards_entity(see_able, lowest_index)
-
-                self.mate(game, self_index)
+                    self.random_movement()
 
             elif "P" in see_able_display:
-                print("Eat plant since rabbit wont mate")
+                print("See Plant")
+                # Remove any entities which are not plants
                 lowest_distance = None
                 lowest_index = None
                 for index, entity in enumerate(see_able):
@@ -573,103 +610,78 @@ class Rabbit(Entity):
                     elif lowest_distance is not None and distance < lowest_distance and entity.display() == "P":
                         lowest_distance = distance
                         lowest_index = index
-
+                """
+                plant_pos = see_able[lowest_index].get_position()
+                rabbit_pos = self.get_position()
+                rabbit_jump = self._data["MoveDistance"]
+                x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
+    
+                if abs(x_distance) <= rabbit_jump:
+                    x_movement = x_distance
+    
+                if abs(y_distance) <= rabbit_jump:
+                    y_movement = y_distance
+                    #
+                if abs(x_distance) > rabbit_jump:
+                    if x_distance < 0:
+                        x_movement = -rabbit_jump
+                    else:
+                        x_movement = rabbit_jump
+    
+                if abs(y_distance) > rabbit_jump:
+                    if y_distance < 0:
+                        y_movement = -rabbit_jump
+                    else:
+                        y_movement = rabbit_jump
+                """
+                # Bite doesn't work as intended here as the location of the
+                # Rabbit is not updated before bite is called
+                # this may call for a universal movement system for Entities
                 self.move_towards_entity(see_able, lowest_index)
+
                 self.bite(game, self_index)
+                """
+                    for entity in see_able:
+                        # Currently if plant isn't the first thing in their list of see-able items, it will randomly move
+                        # And since the orginal foxes and orginal rabbits were generated before plants, they are always "seen" first and therefore
+                        # random movement occurs
+    
+                        # Make it so it moves towards the closest plant or rabbit.
+                        if entity.display() == "P":
+                            plant_pos = entity.get_position()
+                            rabbit_pos = self.get_position()
+                            rabbit_jump = self._data["MoveDistance"]
+                            x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
+                            # print(x_distance, y_distance)
+                            # print(self._data["MoveDistance"])
+    
+                            # Calculate how far the rabbit will jump
+                            if abs(x_distance) <= rabbit_jump:
+                                x_movement = x_distance
+                            if abs(y_distance) <= rabbit_jump:
+                                y_movement = y_distance
+                            #
+                            if abs(x_distance) > rabbit_jump:
+                                if x_distance < 0:
+                                    x_movement = -rabbit_jump
+                                else:
+                                    x_movement = rabbit_jump
+    
+                            if abs(y_distance) > rabbit_jump:
+                                if y_distance < 0:
+                                    y_movement = -rabbit_jump
+                                else:
+                                    y_movement = rabbit_jump
+                                    # Bite doesn't work as intended here as the location of the
+                                    # Rabbit is not updated before bite is called
+                                    # this may call for a universal movement system for Entities
+                                    # No
+                            self.move_entity(x_movement, y_movement)
+                            self.bite(game, self_index)
+                            break
+                        """
             else:
                 self.random_movement()
-
-        elif "P" in see_able_display:
-            print("See Plant")
-            # Remove any entities which are not plants
-            lowest_distance = None
-            lowest_index = None
-            for index, entity in enumerate(see_able):
-                plant_pos = entity.get_position()
-                rabbit_pos = self.get_position()
-
-                x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
-                distance = int(self.determine_distance(x_distance, y_distance))
-
-                if lowest_distance is None and entity.display() == "P":
-                    lowest_distance = distance
-                    lowest_index = index
-
-                elif lowest_distance is not None and distance < lowest_distance and entity.display() == "P":
-                    lowest_distance = distance
-                    lowest_index = index
-            """
-            plant_pos = see_able[lowest_index].get_position()
-            rabbit_pos = self.get_position()
-            rabbit_jump = self._data["MoveDistance"]
-            x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
-
-            if abs(x_distance) <= rabbit_jump:
-                x_movement = x_distance
-
-            if abs(y_distance) <= rabbit_jump:
-                y_movement = y_distance
-                #
-            if abs(x_distance) > rabbit_jump:
-                if x_distance < 0:
-                    x_movement = -rabbit_jump
-                else:
-                    x_movement = rabbit_jump
-
-            if abs(y_distance) > rabbit_jump:
-                if y_distance < 0:
-                    y_movement = -rabbit_jump
-                else:
-                    y_movement = rabbit_jump
-            """
-            # Bite doesn't work as intended here as the location of the
-            # Rabbit is not updated before bite is called
-            # this may call for a universal movement system for Entities
-            self.move_towards_entity(see_able, lowest_index)
-
-            self.bite(game, self_index)
-            """
-                for entity in see_able:
-                    # Currently if plant isn't the first thing in their list of see-able items, it will randomly move
-                    # And since the orginal foxes and orginal rabbits were generated before plants, they are always "seen" first and therefore
-                    # random movement occurs
-
-                    # Make it so it moves towards the closest plant or rabbit.
-                    if entity.display() == "P":
-                        plant_pos = entity.get_position()
-                        rabbit_pos = self.get_position()
-                        rabbit_jump = self._data["MoveDistance"]
-                        x_distance, y_distance = plant_pos[0] - rabbit_pos[0], plant_pos[1] - rabbit_pos[1]
-                        # print(x_distance, y_distance)
-                        # print(self._data["MoveDistance"])
-
-                        # Calculate how far the rabbit will jump
-                        if abs(x_distance) <= rabbit_jump:
-                            x_movement = x_distance
-                        if abs(y_distance) <= rabbit_jump:
-                            y_movement = y_distance
-                        #
-                        if abs(x_distance) > rabbit_jump:
-                            if x_distance < 0:
-                                x_movement = -rabbit_jump
-                            else:
-                                x_movement = rabbit_jump
-
-                        if abs(y_distance) > rabbit_jump:
-                            if y_distance < 0:
-                                y_movement = -rabbit_jump
-                            else:
-                                y_movement = rabbit_jump
-                                # Bite doesn't work as intended here as the location of the
-                                # Rabbit is not updated before bite is called
-                                # this may call for a universal movement system for Entities
-                                # No
-                        self.move_entity(x_movement, y_movement)
-                        self.bite(game, self_index)
-                        break
-                    """
-        else:
-            self.random_movement()
 
     def step(self, game, index):
         # all the steps above are enacted
@@ -1104,7 +1116,6 @@ class Board(tk.Canvas):
         self.draw_board()
         self.step()
 
-
     def remove_entity(self, index):
         self._entities.pop(index)
 
@@ -1113,8 +1124,6 @@ class Board(tk.Canvas):
 
     def increment_step(self):
         self._step += 1
-
-
 
     def display_entities(self):
         display = []
@@ -1237,7 +1246,6 @@ class Board(tk.Canvas):
             if entity.get_age() > entity__max_age:
                 print(f"{entity.get_name()} died of old age.")
 
-
     def energy_check(self, entity, index):
         """
         Kills entities when their energy has gone below zero
@@ -1249,7 +1257,6 @@ class Board(tk.Canvas):
         if entity.get_energy() <= 0:
             print(f"{entity.get_name()} died of starvation.")
             self._entities.pop(index)
-
 
     def get_entities(self):
         return self._entities
