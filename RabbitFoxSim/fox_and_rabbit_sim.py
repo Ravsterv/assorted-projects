@@ -116,23 +116,24 @@ class Entity:
     """
 
     def __init__(self, age, sight, energy, mate_energy, move_distance, bite_range, children, breeding_cost, position,
-                 gen):
+                 gen, mutation):
         self._data = {
             "Age": age,
             "Gen": gen,
             "Name": random.choice(RABBIT_NAMES),
             "Mature": False,
-            "Sight": sight,
+            "Sight": sight if sight > 0 else 1,
             "WantMate": False,
             "Energy": energy,
             "CoolDown": 3,
-            "MateEnergyThreshold": mate_energy,
-            "MoveDistance": move_distance,
-            "BiteRange": bite_range,
-            "Children": children,
-            "BreedingCost": breeding_cost,
+            "MateEnergyThreshold": mate_energy if mate_energy > breeding_cost else breeding_cost,
+            "MoveDistance": move_distance if move_distance > 0 else 1,
+            "BiteRange": bite_range if bite_range > 0 else 1,
+            "Children": children if children > 0 else 1,
+            "BreedingCost": breeding_cost if breeding_cost > 0 else 1,
             "MateRange": 10,
-            "Dead": False
+            "Dead": False,
+            "MutationRate": mutation if mutation > 0 else 1
 
         }
         b = self._data["BiteRange"]
@@ -147,6 +148,9 @@ class Entity:
     def is_dead(self):
         if self._data["Energy"] <= 0 or self._data["Age"] >= self.get_max_age():
             self._data["Dead"] = True
+
+    def get_mutation_rate(self):
+        return self._data["MutationRate"]
 
     def get_dead(self):
         return self._data["Dead"]
@@ -333,9 +337,9 @@ class Entity:
 
 class Rabbit(Entity):
     def __init__(self, age, sight, energy, mate_energy, move_distance, bite_range, children, breeding_cost, position,
-                 gen):
+                 gen, mutation):
         super().__init__(age, sight, energy, mate_energy, move_distance, bite_range, children, breeding_cost, position,
-                         gen)
+                         gen, mutation)
         self._data["MaxAge"] = 40
 
     def mature_check(self):
@@ -405,7 +409,8 @@ class Rabbit(Entity):
                          self.get_move_distance(),
                          self.get_bite_range(),
                          self.get_children(),
-                         self.get_breed_energy()]
+                         self.get_breed_energy(),
+                         self.get_mutation_rate()]
 
         rabbit2_genes = [0,
                          partner.get_sight(),
@@ -414,7 +419,8 @@ class Rabbit(Entity):
                          partner.get_move_distance(),
                          partner.get_bite_range(),
                          partner.get_children(),
-                         partner.get_breed_energy()]
+                         partner.get_breed_energy(),
+                         partner.get_mutation_rate()]
         baby_genes = []
         for index, gene_trait in enumerate(rabbit1_genes):
             choice = random.randint(0, 1)
@@ -424,6 +430,12 @@ class Rabbit(Entity):
                 baby_genes.append(rabbit2_genes[index])
         parent1_gen = self.get_gen()
         parent2_gen = partner.get_gen()
+
+        if random.randint(0, 1) == 0:
+            mutation_rate = self.get_mutation_rate()
+        else:
+            mutation_rate = partner.get_mutation_rate()
+
         if parent1_gen >= parent2_gen:
             baby_gen = parent1_gen + 1
         else:
@@ -433,15 +445,16 @@ class Rabbit(Entity):
         baby_position = [random.randint(my_position[0] - 30, my_position[0] + 30), my_position[1] - 30,
                          my_position[1] + 30]
         new_rabbit = Rabbit(baby_genes[0],
-                            baby_genes[1],
+                            baby_genes[1] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
                             baby_genes[2],
-                            baby_genes[3],
-                            baby_genes[4],
-                            baby_genes[5],
+                            baby_genes[3] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
+                            baby_genes[4] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
+                            baby_genes[5] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
                             baby_genes[6],
-                            baby_genes[7],
+                            baby_genes[7] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
                             baby_position,
-                            baby_gen)
+                            baby_gen,
+                            baby_genes[8] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1)
         game.add_entity(new_rabbit)
 
         print(new_rabbit.get_genes())
@@ -468,7 +481,8 @@ class Rabbit(Entity):
                 # Make sure it doesn't eat itself or other rabbits
                 # It can only bite a plant within its bite range
 
-                if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[1] and entity.display() == "P" and \
+                if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[
+                    1] and entity.display() == "P" and \
                         not self.get_dead() and not entity.get_dead():
                     # print(x_range[0], x_range[1])
                     # print(y_range[0], y_range[1])
@@ -713,9 +727,9 @@ class Rabbit(Entity):
 
 class Fox(Entity):
     def __init__(self, age, sight, energy, mate_energy, move_distance, bite_range, children, breeding_cost, position,
-                 gen):
+                 gen, mutation):
         super().__init__(age, sight, energy, mate_energy, move_distance, bite_range, children, breeding_cost, position,
-                         gen)
+                         gen, mutation)
         self._data["MaxAge"] = 60
 
     def age_check(self):
@@ -830,7 +844,8 @@ class Fox(Entity):
                          self.get_move_distance(),
                          self.get_bite_range(),
                          self.get_children(),
-                         self.get_breed_energy()]
+                         self.get_breed_energy(),
+                         self.get_mutation_rate()]
 
         rabbit2_genes = [0,
                          partner.get_sight(),
@@ -839,7 +854,8 @@ class Fox(Entity):
                          partner.get_move_distance(),
                          partner.get_bite_range(),
                          partner.get_children(),
-                         partner.get_breed_energy()]
+                         partner.get_breed_energy(),
+                         partner.get_mutation_rate()]
         baby_genes = []
         for index, gene_trait in enumerate(rabbit1_genes):
             choice = random.randint(0, 1)
@@ -849,24 +865,33 @@ class Fox(Entity):
                 baby_genes.append(rabbit2_genes[index])
         parent1_gen = self.get_gen()
         parent2_gen = partner.get_gen()
+
+        if random.randint(0, 1) == 0:
+            mutation_rate = self.get_mutation_rate()
+        else:
+            mutation_rate = partner.get_mutation_rate()
+
         if parent1_gen >= parent2_gen:
             baby_gen = parent1_gen + 1
+
         else:
             baby_gen = parent2_gen + 1
 
         my_position = self.get_position()
+
         baby_position = [random.randint(my_position[0] - 30, my_position[0] + 30), my_position[1] - 30,
                          my_position[1] + 30]
         new_rabbit = Fox(baby_genes[0],
-                         baby_genes[1] + random.randint(-5, 5),
+                         baby_genes[1] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
                          baby_genes[2],
                          baby_genes[3],
-                         baby_genes[4] + random.randint(-5, 5),
-                         baby_genes[5] + random.randint(-5, 5),
+                         baby_genes[4] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
+                         baby_genes[5] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
                          baby_genes[6],
-                         baby_genes[7] + random.randint(-5, 5),
+                         baby_genes[7] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1,
                          baby_position,
-                         baby_gen)
+                         baby_gen,
+                         baby_genes[8] + random.randint(-5, 5) * 0 if random.randint(0, 100) > mutation_rate else 1)
         game.add_entity(new_rabbit)
 
         print(new_rabbit.get_genes())
@@ -1110,7 +1135,7 @@ class Plant:
 class Meat:
     def __init__(self, position, energy):
         """
-        Plants will be able to propagate more plants from them
+        Meat will be able to propagate more plants from them
         Maybe Not
         """
         self._position = position
@@ -1118,8 +1143,8 @@ class Meat:
                               self._position[1] + 5]
         self._data = {
             "Age": 0,
-            "Energy": 10+abs(energy),
-            "Name": "Plant",
+            "Energy": 10 + abs(energy),
+            "Name": "Meat",
             "Dead": False
         }
 
@@ -1201,7 +1226,6 @@ class Meat:
         return self._data["Age"]
 
 
-
 class Board(tk.Canvas):
     """
     Next step is data collection and gene mutations
@@ -1225,7 +1249,8 @@ class Board(tk.Canvas):
                                 r["Children"],
                                 r["BreedingCost"],
                                 r["Position"],
-                                0)  # Gen
+                                0,
+                                r["MutationRate"])  # Gen
             self._entities.append(new_rabbit)
 
         for fox in range(FOX_COUNT):
@@ -1239,7 +1264,8 @@ class Board(tk.Canvas):
                           f["Children"],
                           f["BreedingCost"],
                           f["Position"],
-                          0)
+                          0,
+                          f["MutationRate"])
             self._entities.append(new_fox)
 
         for plant in range(PLANT_COUNT):
@@ -1347,8 +1373,6 @@ class Board(tk.Canvas):
             elif entity.display() == "R" or entity.display() == "F":
                 m = Meat([entity.get_position()[0], entity.get_position()[1], entity.get_energy()])
                 self.add_entity(m)
-
-
 
         self.set_entities(next_board)
         for plant in range(8):

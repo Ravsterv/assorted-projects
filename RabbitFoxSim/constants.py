@@ -21,7 +21,8 @@ def create_rabbit():
         "Children": random.randint(1, 4),
         "BreedingCost": random.randint(10, 40),
         "Position": [random.randint(X_MIN, X_MAX), random.randint(Y_MIN, Y_MAX)],
-        "Gen": 0
+        "Gen": 0,
+        "MutationRate": 5
     }
     return RABBIT_DETAILS
 
