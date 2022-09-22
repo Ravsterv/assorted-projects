@@ -366,15 +366,15 @@ class Rabbit(Entity):
 
                 if x_range[0] < pos2[0] < x_range[1] and y_range[0] < pos2[1] < y_range[
                     1] and entity.display() == "R" \
-                        and entity.check_mate() and index == indexes:
+                        and entity.check_mate() and index != indexes:
 
-                    print(f"{self.get_name()} is mating with {entity.get_name()}")
-                    print(entity.get_cool_down())
-
-                    self.reset_cool_down()
+                    print(f"{self.get_name()}({self.get_cool_down()}) is mating with {entity.get_name()}"
+                          f"({entity.get_cool_down()})")
+                    print(index, indexes)
+                    print(game.get_entities())
 
                     entity.reset_cool_down()
-                    print(entity.get_cool_down())
+                    self.reset_cool_down()
                     child_choice = random.randint(0, 1)
 
                     # Decide which parent will give its energy
@@ -481,7 +481,7 @@ class Rabbit(Entity):
                     print("")
                     # make the plant "dead" and unable to be targeted by any other rabbits
                     entity.make_dead()
-                    self.add_energy(20)
+                    self.add_energy(entity.get_energy())
                     break
 
     def move(self, game: "Board", self_index):
@@ -911,7 +911,7 @@ class Fox(Entity):
             # Check if any entities are edible
             # Create a list which is a display version of see-able
             if "F" in see_able_display and self.check_mate():
-                print("See Rabbit")
+                print("See Fox")
                 # self.random_movement()
                 lowest_distance = None
                 lowest_index = None
@@ -1044,6 +1044,9 @@ class Plant:
     def get_dead(self):
         return self._data["Dead"]
 
+    def get_energy(self):
+        return self._data["Energy"]
+
     def make_dead(self):
         self._data["Dead"] = True
 
@@ -1103,8 +1106,100 @@ class Plant:
     def get_age(self):
         return self._data["Age"]
 
+
+class Meat:
+    def __init__(self, position, energy):
+        """
+        Plants will be able to propagate more plants from them
+        Maybe Not
+        """
+        self._position = position
+        self._bounding_box = [self._position[0] - 5, self._position[1] - 5, self._position[0] + 5,
+                              self._position[1] + 5]
+        self._data = {
+            "Age": 0,
+            "Energy": 10+abs(energy),
+            "Name": "Plant",
+            "Dead": False
+        }
+
+    def display(self):
+        return "M"
+
+    def get_position(self):
+        return self._position
+
+    def get_bounding_box(self):
+        return self._bounding_box
+
+    def get_name(self):
+        return self._data["Name"]
+
+    def get_dead(self):
+        return self._data["Dead"]
+
     def get_energy(self):
         return self._data["Energy"]
+
+    def make_dead(self):
+        self._data["Dead"] = True
+
+    def want_mate(self):
+        pass
+
+    def is_dead(self):
+        # Used as it is technically not an entity but this still gets run against it.
+        pass
+
+    def move_entity(self):
+
+        if self._position[0] > 1000:
+            self._position[0] = 1000
+
+        if self._position[1] > 800:
+            self._position[1] = 800
+
+        if self._position[0] < 0:
+            self._position[0] = 0
+
+        if self._position[1] < 0:
+            self._position[1] = 0
+
+    def step(self, game, index):
+        """
+        Maybe have plants create more plants around them.
+        Scrap this idea, just make plants spawn randomly over the screen rather than gathereing in one spot
+        to keep the rabbits moving around. Maybe have reproducing grasses up to 100 grasses with only a one in onehundred chance of reproducing
+        :param game:
+        :param index:
+        :return:
+        """
+        """
+        entities = game.display_entities()
+
+        plants = entities.count("P")
+
+        if plants < 100:
+            upper_limit = 99
+
+        else:
+            upper_limit = "Stop"
+
+        if upper_limit != "Stop":
+            choice = random.randint(0, upper_limit)
+            if choice == 0:
+                # print(f"Plant({index-game.get_back_up()})")
+                p = Plant([random.randint(self._position[0]-50, self._position[0]+50), random.randint(self._position[1]-50, self._position[1]+50)])
+                p.move_entity()
+                game.add_entity(p)
+        else:
+            pass
+        """
+        pass
+
+    def get_age(self):
+        return self._data["Age"]
+
 
 
 class Board(tk.Canvas):
@@ -1214,6 +1309,8 @@ class Board(tk.Canvas):
                 self.create_text(placeholder[0], placeholder[1] - 50, text=f"Gen {entity.get_gen()}")
             elif entity.display() == "P":
                 self.create_rectangle(pos[0], pos[1], pos[2], pos[3], fill="green")
+            elif entity.display() == "M":
+                self.create_rectangle(pos[0], pos[1], pos[2], pos[3], fill="brown")
             # Display the entities age
 
     def step(self):
@@ -1247,6 +1344,11 @@ class Board(tk.Canvas):
         for entity in self._entities:
             if not entity.get_dead():
                 next_board.append(entity)
+            elif entity.display() == "R" or entity.display() == "F":
+                m = Meat([entity.get_position()[0], entity.get_position()[1], entity.get_energy()])
+                self.add_entity(m)
+
+
 
         self.set_entities(next_board)
         for plant in range(8):
@@ -1268,7 +1370,7 @@ class Board(tk.Canvas):
                         self.create_line(pos1[0], pos1[1], pos2[0], pos2[1])"""
 
         self.increment_step()
-        self.after(100, self.step)
+        self.after(1000, self.step)
 
     def collect_data(self):
         # Meant to collect data of simulation
